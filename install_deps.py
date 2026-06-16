@@ -6,9 +6,9 @@ from pathlib import Path
 
 # Package definitions for traditional Linux distributions
 DEPS = {
-    "ubuntu_debian": ["grim", "slurp", "tesseract-ocr", "tesseract-ocr-ukr", "python3-pip", "python3-venv"],
-    "fedora": ["grim", "slurp", "tesseract", "tesseract-langpack-ukr", "python3-pip"],
-    "arch": ["grim", "slurp", "tesseract", "tesseract-data-ukr", "python-pip"]
+    "ubuntu_debian": ["grim", "slurp", "tesseract-ocr", "tesseract-ocr-ukr", "tesseract-ocr-eng", "python3-pip", "python3-venv"],
+    "fedora": ["grim", "slurp", "tesseract", "tesseract-langpack-ukr", "tesseract-langpack-eng", "python3-pip"],
+    "arch": ["grim", "slurp", "tesseract", "tesseract-data-ukr", "tesseract-data-eng", "python-pip"]
 }
 
 # Pip requirements
