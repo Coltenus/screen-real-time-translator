@@ -1,6 +1,6 @@
-# Screen Translator
+# Screen Real-Time Translator
 
-Screen Translator is a real-time optical character recognition (OCR) and translation tool designed for Wayland desktop environments. The application allows users to select a specific screen area, automatically extracts text, and displays the translation as an overlay near the captured region.
+Screen Real-Time Translator is a real-time optical character recognition (OCR) and translation tool designed for Wayland desktop environments. The application allows users to select a specific screen area, automatically extracts text, and displays the translation as an overlay near the captured region.
 
 This software was developed with the assistance of artificial intelligence (AI-generated software).
 
