@@ -272,7 +272,9 @@ class TranslationWorker(QThread):
         if not original:
             return "[no text detected]", ""
 
-        # ─── FIX: Інтелектуальне злиття рядків (Версія 2.0) ──────────────────
+        # ─── FIX: Інтелектуальне злиття рядків для ігрових діалогів ─────────
+        import re
+
         lines = original.split("\n")
         processed_lines = []
         
@@ -280,33 +282,43 @@ class TranslationWorker(QThread):
         while i < len(lines):
             current_line = lines[i].strip()
             
+            # 1. Фільтрація OCR-сміття на межах рядків (прибираємо поодинокі символи |, /, \, _, 1, 2)
+            # Якщо рядок складається лише з одного-двох технічних символів — ігноруємо його
+            if current_line and re.match(r'^[\d\s|/\\_\-\.\,\"\']+$', current_line):
+                i += 1
+                continue
+
+            # Очищаємо випадкові "палички" | на початку або в кінці нормального рядка
+            current_line = re.sub(r'(^[\s|/\\]+|[\s|/\\]+$)', '', current_line).strip()
+
             if not current_line:
                 processed_lines.append("")
                 i += 1
                 continue
                 
-            while i + 1 < len(lines) and lines[i + 1].strip():
+            while i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
                 
-                # Критерії за якими ми ЗАБОРОНЯЄМО злиття (залишаємо новий рядок):
-                # 1. Рядок закінчується знаком пунктуації речення
+                # Прибираємо сміття з наступного рядка перед аналізом
+                if next_line and re.match(r'^[\d\s|/\\_\-\.\,\"\']+$', next_line):
+                    i += 1
+                    continue
+                next_line = re.sub(r'(^[\s|/\\]+|[\s|/\\]+$)', '', next_line).strip()
+                
+                if not next_line:
+                    break
+                    
+                # Критерії ЗАБОРОНИ злиття (залишаємо новий рядок):
+                # 1. Поточний рядок закінчується крапкою, знаком оклику чи питання
                 if current_line[-1] in ['.', '!', '?']:
                     break
                     
-                # 2. Наступний рядок є явним початком нового речення або назви (Велика літера/Цифра)
-                if next_line[0].isupper() or next_line[0].isdigit():
-                    break
-                    
-                # 3. Рядок є посиланням (містить .org, .com, .net, http) або є дуже коротким (заголовок/назва додатка)
-                if (any(domain in current_line.lower() for domain in [".org", ".com", ".net", "http", "www."]) or 
-                    len(current_line) < 30): # Трохи збільшили ліміт для довгих технічних заголовків
-                    break
-                    
-                # 4. Наступний рядок сам по собі є посиланням
-                if any(domain in next_line.lower() for domain in [".org", ".com", ".net", "http"]):
+                # 2. Поточний рядок є коротким меню або назвою, або містить URL
+                if (any(domain in current_line.lower() for domain in [".org", ".com", ".net", "http"]) or 
+                    len(current_line) < 30):
                     break
                 
-                # Обробка дефісів (перенос слів)
+                # Інакше — це продовження речення (ігрового вікна діалогу). Зклеюємо!
                 if current_line.endswith("-"):
                     current_line = current_line[:-1] + next_line
                 else:
@@ -318,6 +330,8 @@ class TranslationWorker(QThread):
             i += 1
             
         original_processed = "\n".join(processed_lines).strip()
+        # Прибираємо подвійні пробіли, що могли виникнути при очищенні регулярками
+        original_processed = re.sub(r' +', ' ', original_processed)
         # ─────────────────────────────────────────────────────────────────────
 
         if not original_processed:
@@ -389,27 +403,39 @@ class TranslationOverlay(QWidget):
     def update_text(self, original: str, translated: str):
         show_orig = self._cfg.get("show_original", False)
 
+        # Якщо текст пустий або не розпізнаний, не ховаємо вікно, 
+        # а просто пишемо софт-статус, щоб оверлей не блимав і не зникав
+        if not translated.strip() or "[no text detected]" in original:
+            # Можна залишити старий текст або вивести легкий маркер очікування
+            if not self._label.text():
+                self._label.setText("<span style='color: gray;'>Waiting for text...</span>")
+            return
+
         if show_orig and original:
             text = f"<b>Original:</b><br>{original}<hr><b>Translation:</b><br>{translated}"
         else:
             text = translated or ""
 
         self._label.setText(text)
-        self.adjustSize()
-        self._reposition()
+        
+        # FIX: Задаємо фіксовану ширину, але дозволяємо висоті рости автоматично
+        # Без adjustSize() для всього вікна, щоб воно не стискалося в точку
+        self.setFixedHeight(self.sizeHint().height())
 
-        if text.strip():
+        # Репозиціонуємо ОДИН РАЗ при першому показі. 
+        # Якщо вікно вже на екрані, його координати не чіпаємо, щоб не скидати ручний move()
+        if not self.isVisible():
+            self._reposition()
             self.show()
-            self.raise_()
-        else:
-            self.hide()
+            
+        self.update()
 
     def _reposition(self):
+        """Викликається ТІЛЬКИ при першому запуску оверлея."""
         if not self._region_str:
             return
 
         try:
-            # Parse slurp format "x,y wxh"
             coords, dims = self._region_str.split(" ")
             rx, ry = map(int, coords.split(","))
             rw, rh = map(int, dims.split("x"))
@@ -419,17 +445,24 @@ class TranslationOverlay(QWidget):
         screen = QApplication.primaryScreen()
         screen_geo = screen.geometry()
 
+        # Задаємо базову ширину відповідно до зони скріншоту (але не менше 250px)
+        w = max(rw, 250)
+        self.setFixedWidth(w)
+        
+        # Обчислюємо висоту під текст
+        h = self.sizeHint().height()
+        
+        # Позиціонуємо над областю
         x = rx
-        y = ry - self.height() - 6
+        y = ry - h - 10
         if y < screen_geo.y():
-            y = ry + rh + 6
+            y = ry + rh + 10
 
-        max_x = screen_geo.x() + screen_geo.width() - self.width() - 4
+        # Клампинг, щоб не вилізти за межі монітора
+        max_x = screen_geo.x() + screen_geo.width() - w - 4
         x = max(screen_geo.x() + 4, min(x, max_x))
 
-        self.setFixedWidth(max(rw, 200))
-        self.adjustSize()
-        self.move(x, y)
+        self.setGeometry(x, y, w, h)
 
 
 # ─── Settings dialog ──────────────────────────────────────────────────────────
