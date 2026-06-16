@@ -272,10 +272,61 @@ class TranslationWorker(QThread):
         if not original:
             return "[no text detected]", ""
 
+        # ─── FIX: Інтелектуальне злиття рядків (Версія 2.0) ──────────────────
+        lines = original.split("\n")
+        processed_lines = []
+        
+        i = 0
+        while i < len(lines):
+            current_line = lines[i].strip()
+            
+            if not current_line:
+                processed_lines.append("")
+                i += 1
+                continue
+                
+            while i + 1 < len(lines) and lines[i + 1].strip():
+                next_line = lines[i + 1].strip()
+                
+                # Критерії за якими ми ЗАБОРОНЯЄМО злиття (залишаємо новий рядок):
+                # 1. Рядок закінчується знаком пунктуації речення
+                if current_line[-1] in ['.', '!', '?']:
+                    break
+                    
+                # 2. Наступний рядок є явним початком нового речення або назви (Велика літера/Цифра)
+                if next_line[0].isupper() or next_line[0].isdigit():
+                    break
+                    
+                # 3. Рядок є посиланням (містить .org, .com, .net, http) або є дуже коротким (заголовок/назва додатка)
+                if (any(domain in current_line.lower() for domain in [".org", ".com", ".net", "http", "www."]) or 
+                    len(current_line) < 30): # Трохи збільшили ліміт для довгих технічних заголовків
+                    break
+                    
+                # 4. Наступний рядок сам по собі є посиланням
+                if any(domain in next_line.lower() for domain in [".org", ".com", ".net", "http"]):
+                    break
+                
+                # Обробка дефісів (перенос слів)
+                if current_line.endswith("-"):
+                    current_line = current_line[:-1] + next_line
+                else:
+                    current_line = current_line + " " + next_line
+                
+                i += 1
+                
+            processed_lines.append(current_line)
+            i += 1
+            
+        original_processed = "\n".join(processed_lines).strip()
+        # ─────────────────────────────────────────────────────────────────────
+
+        if not original_processed:
+            return "[no text detected]", ""
+
         # -- 5. Translate --
         translator = GoogleTranslator(source=src, target=tgt)
-        translated = translator.translate(original)
-        return original, translated or ""
+        translated = translator.translate(original_processed)
+        return original_processed, translated or ""
 
 
 # ─── Translation overlay window ───────────────────────────────────────────────
