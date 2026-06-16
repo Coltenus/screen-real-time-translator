@@ -1,0 +1,6 @@
+PyQt6>=6.4.0
+deep-translator>=1.11.4
+Pillow>=10.0.0
+pytesseract>=0.3.10
+mss>=9.0.1
+numpy>=1.24.0
