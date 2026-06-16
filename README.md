@@ -11,7 +11,7 @@ This software was developed with the assistance of artificial intelligence (AI-g
 * **Wayland Native Compatibility:** Uses `grim` and `slurp` for screen capture and region selection, completely bypassing XWayland security or black-screen limitations.
 * **Dynamic Overlay Window:** The translation overlay dynamically adjusts its bounds based on text size and positions itself near the captured region.
 * **Multilingual Support:** Powered by Tesseract OCR and Google Translator to recognize and process text across dozens of languages, including Ukrainian.
-* **Universal Automation Script:** Automatically detects the underlying Linux distribution and configures dependencies accordingly (including declarative support for NixOS).
+* **Universal Automation Script:** Automatically detects traditional Linux distributions to configure dependencies and virtual environments while safely redirecting NixOS users.
 
 ---
 
@@ -27,39 +27,39 @@ To run this application, the following components must be present on your system
 
 ## Installation and Setup
 
-An automation script is provided to set up the environment. It detects your distribution, installs the necessary system binaries, and isolates Python packages.
+### NixOS Environment
 
-1. Make the installation script executable:
+If you are running NixOS, a standalone configuration is available. Do not run the automated installation script. Instead, drop straight into the managed environment using the native package manager:
+
 ```bash
-chmod +x install_deps.py
+nix-shell
 
 ```
 
-
-2. Execute the configuration script:
-```bash
-./install_deps.py
-
-```
-
-
-
-### NixOS Target
-
-The script automatically generates a `shell.nix` file and drops you into a managed environment via `nix-shell`. Python virtual environment (`venv`) generation is bypassed to maintain proper shared library linkages for Qt graphics drivers inside the Nix store. Once inside the shell, launch the application using:
+The declarative configuration automatically provisions the system utilities and isolated Python bindings. Once the shell finishes evaluating, launch the application:
 
 ```bash
 python3 screen_translator.py
 
 ```
 
-### Arch / Fedora / Ubuntu Targets
+### Arch / Fedora / Ubuntu Environments
 
-The script provisions system packages using your native package manager, sets up a local virtual environment in the `.venv` directory, and fetches the required Python modules. Run the translator using the isolated environment interpreter:
+For traditional FHS distributions, an automation script is provided to handle system binaries via your native package manager and isolate application modules inside a local virtual environment (`.venv`).
 
+1. Make the installation script executable:
+```bash
+chmod +x install_deps.py
+```
+
+2. Execute the configuration script:
+```bash
+./install_deps.py
+```
+
+3. Run the translator using the isolated environment interpreter:
 ```bash
 ./.venv/bin/python screen_translator.py
-
 ```
 
 ---
