@@ -33,14 +33,12 @@ If you are running NixOS, a standalone configuration is available. Do not run th
 
 ```bash
 nix-shell
-
 ```
 
 The declarative configuration automatically provisions the system utilities and isolated Python bindings. Once the shell finishes evaluating, launch the application:
 
 ```bash
 python3 screen_translator.py
-
 ```
 
 ### Arch / Fedora / Ubuntu Environments
@@ -70,3 +68,5 @@ chmod +x install_deps.py
 2. Select your target source and destination languages.
 3. Click the region selection button to invoke `slurp` and drag a bounding box over your screen.
 4. Click "Start Translation" to begin the real-time processing loop.
+
+![](assets/screen1.png)
